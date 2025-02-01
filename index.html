@@ -327,7 +327,7 @@ if (!steps || steps.length === 0) {
     <h1 class="text-center">Решение задач линейного программирования</h1>
     
     <nav class="nav nav-pills justify-content-center my-3">
-        <button class="nav-link active" onclick="showSection('graphic-method')">Графический метод</button>
+        <button class="nav-link" onclick="showSection('graphic-method')">Графический метод</button>
         <button class="nav-link" onclick="showSection('simplex-method')">Симплекс-метод</button>
         <button class="nav-link" onclick="showSection('transport-problem')">Транспортная задача</button>
     </nav>
@@ -345,11 +345,13 @@ if (!steps || steps.length === 0) {
                 <td><input type="number" class="form-control" placeholder="x2"></td>
             </tr>
         </table>
-        
+
+        <label>Min <input type="checkbox" id="opt-goal"> Max</label>
+
         <h3>Коэффициенты ограничений:</h3>
         <table class="table" id="constraints-table"></table>
         
-        <label>Min <input type="checkbox" id="opt-goal"> Max</label>
+
         
         <button class="btn btn-success mt-3" onclick="solveGraphicalMethod()">Решить</button>
         
@@ -382,9 +384,11 @@ if (!steps || steps.length === 0) {
     <h3>Коэффициенты ограничений:</h3>
     <table class="table" id="simplex-constraints-table"></table>
 
-    <h3>Решение:</h3>
-    <div id="solution-output-simplex" class="mt-3"></div>
     <button class="btn btn-success mt-3" onclick="solveSimplexMethod()">Решить</button>
+
+    <h3>Результат:</h3>
+    <div id="solution-output-simplex" class="mt-3"></div>
+
 
 </div>
 </body>
