@@ -163,163 +163,93 @@ function drawGraph(constraints, bestPoint) {
         }
     }
 
-        function solveSimplexMethod() {
-    let variablesCount = document.getElementById('variables-count').value;
-    let constraintsCount = document.getElementById('simplex-constraints-count').value;
+ function solveSimplexMethod() {
+            let variablesCount = parseInt(document.getElementById('variables-count').value);
+            let constraintsCount = parseInt(document.getElementById('simplex-constraints-count').value);
+            let maximize = document.getElementById('opt-goal-simplex')?.checked ?? false;
 
-    // Исправлено: проверка наличия флажка
-    let maximize = document.getElementById('opt-goal-simplex')?.checked ?? false; // true - max, false - min
+            let objCoefficients = [];
+            let constraints = [];
 
-    let objCoefficients = [];
-    let constraints = [];
+            document.querySelectorAll('#simplex-objective-function input').forEach(input => {
+                objCoefficients.push(parseFloat(input.value) || 0);
+            });
 
-    // Считываем коэффициенты целевой функции
-    let allFilled = true;
-    document.querySelectorAll('#simplex-objective-function input').forEach(input => {
-        let value = parseFloat(input.value);
-        if (isNaN(value)) {
-            allFilled = false;
-        }
-        objCoefficients.push(value);
-    });
+            document.querySelectorAll('#simplex-constraints-table tr').forEach(row => {
+                let inputs = row.querySelectorAll('input');
+                let sign = row.querySelector('select')?.value || "<=";
+                let constraint = [];
 
-    if (!allFilled) {
-        alert('Ошибка: Введите все коэффициенты целевой функции.');
-        return;
-    }
+                for (let j = 0; j < variablesCount; j++) {
+                    constraint.push(parseFloat(inputs[j]?.value) || 0);
+                }
 
-    // Считываем ограничения
-    document.querySelectorAll('#simplex-constraints-table tr').forEach(row => {
-        let inputs = row.querySelectorAll('input');
-        let sign = row.querySelector('select')?.value || "<="; // Защита от null
-        let constraint = [];
+                let b = parseFloat(inputs[variablesCount]?.value) || 0;
+                constraints.push({ coeffs: constraint, sign, b });
+            });
 
-        for (let j = 0; j < variablesCount; j++) {
-            let value = parseFloat(inputs[j]?.value) || 0; // Безопасный доступ
-            constraint.push(value);
+            let result = simplexSolver(objCoefficients, constraints, maximize);
+            displayFinalSolution(result);
         }
 
-        let b = parseFloat(inputs[variablesCount]?.value) || 0;
-        constraints.push({ coeffs: constraint, sign, b });
-    });
+        function simplexSolver(c, constraints, maximize) {
+            let tableau = constraints.map(constr => [...constr.coeffs, constr.b]);
+            let objRow = maximize ? c.map(v => -v) : [...c];
+            objRow.push(0);
+            tableau.push(objRow);
 
-    // Преобразуем ограничения в стандартный вид (≤)
-    let slackVars = [];
-    let tableau = [];
+            while (true) {
+                let lastRow = tableau[tableau.length - 1];
+                let pivotCol = lastRow.indexOf(Math.min(...lastRow.slice(0, -1)));
+                if (lastRow[pivotCol] >= 0) break;
 
-    constraints.forEach((constr, index) => {
-        let row = [...constr.coeffs];
+                let minRatio = Infinity;
+                let pivotRow = -1;
+                for (let i = 0; i < tableau.length - 1; i++) {
+                    let ratio = tableau[i][tableau[i].length - 1] / tableau[i][pivotCol];
+                    if (ratio > 0 && ratio < minRatio) {
+                        minRatio = ratio;
+                        pivotRow = i;
+                    }
+                }
 
-        if (constr.sign === '<=') {
-            row.push(1);  // Добавляем slack переменную
-        } else {
-            row.push(-1); // Добавляем искусственную переменную
-        }
+                if (pivotRow === -1) return null;
 
-        slackVars.push(`S${index + 1}`); // Запоминаем добавленную переменную
-        row.push(constr.b); // Свободный член
-        tableau.push(row);
-    });
+                let pivotValue = tableau[pivotRow][pivotCol];
+                tableau[pivotRow] = tableau[pivotRow].map(v => v / pivotValue);
 
-    // Добавляем строку целевой функции (учитывая min/max)
-    let objRow = maximize ? objCoefficients.map(v => -v) : [...objCoefficients];
-    objRow.push(0);
-    tableau.push(objRow);
-
-    // Запускаем симплекс-метод
-    let solutionSteps = runSimplex(tableau);
-    displaySolution(solutionSteps);
-
-    console.log("Переменные:", variablesCount, "Ограничения:", constraintsCount);
-    console.log("Коэффициенты целевой функции:", objCoefficients);
-    console.log("Ограничения:", constraints);
-}
-
-
-    function runSimplex(tableau) {
-    let steps = [];
-    let iter = 1;
-
-    while (true) {
-        let lastRow = tableau[tableau.length - 1];
-        let minValue = Math.min(...lastRow.slice(0, -1));
-
-        if (minValue >= 0) break; // Оптимальное решение найдено
-
-        // Выбираем разрешающий столбец (pivot column)
-        let pivotCol = lastRow.indexOf(minValue);
-
-        let minRatio = Infinity;
-        let pivotRow = -1;
-
-        // Выбираем разрешающую строку (pivot row)
-        for (let i = 0; i < tableau.length - 1; i++) {
-            let rhs = tableau[i][tableau[i].length - 1]; // Свободный член
-            let colValue = tableau[i][pivotCol]; // Значение в разрешающем столбце
-
-            if (colValue > 0) { // Должно быть положительным
-                let ratio = rhs / colValue;
-                if (ratio < minRatio) {
-                    minRatio = ratio;
-                    pivotRow = i;
+                for (let i = 0; i < tableau.length; i++) {
+                    if (i !== pivotRow) {
+                        let factor = tableau[i][pivotCol];
+                        tableau[i] = tableau[i].map((v, j) => v - factor * tableau[pivotRow][j]);
+                    }
                 }
             }
-        }
 
-        if (pivotRow === -1) {
-            alert("Нет допустимого решения!"); // Если нет подходящей строки
-            return steps;
-        }
-
-        let pivotValue = tableau[pivotRow][pivotCol];
-
-        // Преобразуем разрешающую строку (делим на разрешающий элемент)
-        tableau[pivotRow] = tableau[pivotRow].map(v => v / pivotValue);
-
-        // Обновляем остальные строки (обнуляем элементы в pivotCol)
-        for (let i = 0; i < tableau.length; i++) {
-            if (i !== pivotRow) {
-                let factor = tableau[i][pivotCol];
-                tableau[i] = tableau[i].map((v, j) => v - factor * tableau[pivotRow][j]);
+            let solution = Array(c.length).fill(0);
+            for (let i = 0; i < tableau.length - 1; i++) {
+                let basicVarIndex = tableau[i].findIndex((val, index) => index < c.length && val === 1);
+                if (basicVarIndex !== -1) {
+                    solution[basicVarIndex] = tableau[i][tableau[i].length - 1];
+                }
             }
+
+            let optimalValue = tableau[tableau.length - 1][tableau[0].length - 1];
+            return { solution, optimalValue };
         }
 
-        // Добавляем шаг в массив результатов
-        steps.push({ iter, tableau: JSON.parse(JSON.stringify(tableau)) });
-        iter++;
-    }
+        function displayFinalSolution(result) {
+            let output = document.getElementById('solution-output-simplex');
+            output.innerHTML = '';
 
-    return steps;
-}
+            if (!result) {
+                output.innerHTML = '<p class="text-danger">Ошибка: нет допустимого решения</p>';
+                return;
+            }
 
-    function displaySolution(steps) {
-    let output = document.getElementById('solution-output-simplex');
-console.log("Шаги решения:", steps);
-if (!steps || steps.length === 0) {
-    console.log("Решение не найдено!");
-}
-
-    output.innerHTML = '';
-
-    if (!steps || steps.length === 0) {
-    	output.innerHTML = '<p class="text-danger">Ошибка: нет допустимого решения</p>';
-    	return;
-    }	
-
-
-    steps.forEach(step => {
-        let tableHTML = `<h4>Шаг ${step.iter}</h4><table class="table table-bordered"><tbody>`;
-        step.tableau.forEach(row => {
-            tableHTML += '<tr>';
-            row.forEach(cell => {
-                tableHTML += `<td>${cell.toFixed(2)}</td>`;
-            });
-            tableHTML += '</tr>';
-        });
-        tableHTML += '</tbody></table>';
-        output.innerHTML += tableHTML;
-    });
-}
+            let solutionText = result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(' ');
+            output.innerHTML = `<p class="text-success">Оптимальное решение:<br>${solutionText}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
+        }
 
     </script>
 </head>
