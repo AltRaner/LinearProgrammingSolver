@@ -354,9 +354,9 @@ function updateTransportTables() {
     // Основная таблица с поставщиками и матрицей затрат
     for (let i = 0; i < supplyCount; i++) {
         let row = `<tr><th>Поставщик ${i + 1}</th>`;
-        row += `<td><input type='number' class='form-control' placeholder='В'></td>`; // Возможности поставщика
+        row += `<td><input type='number' class='form-control supply-input' placeholder='В'></td>`; // Возможности поставщика
         for (let j = 0; j < demandCount; j++) {
-            row += `<td><input type='number' class='form-control' placeholder='М'></td>`;
+            row += `<td><input type='number' class='form-control cost-input' placeholder='М'></td>`; // Добавлен класс cost-input
         }
         row += '</tr>';
         transportTable.innerHTML += row;
@@ -364,63 +364,49 @@ function updateTransportTables() {
 }
 
     function solveTransportProblem() {
-    document.getElementById('transport-solution-output').innerHTML = "Решение в процессе...";
+    let outputDiv = document.getElementById('transport-solution-output');
+    outputDiv.innerHTML = ""; // Очищаем вывод
 
     let totalSupply = 0;
     let totalDemand = 0;
 
-    // Получаем все значения поставщиков
-    const supplyInputs = document.querySelectorAll("input[placeholder='Во']");
-    const supplyCount = supplyInputs.length; // Количество поставщиков
-    let supplies = [];
+    // Получаем значения поставщиков
+    const supplyInputs = document.querySelectorAll("input[placeholder='В']");
+    let supplies = Array.from(supplyInputs, input => Number(input.value) || 0);
+    totalSupply = supplies.reduce((a, b) => a + b, 0);
 
-    supplyInputs.forEach(input => {
-        let value = Number(input.value) || 0;
-        supplies.push(value);
-        totalSupply += value;
-    });
-
-    // Получаем все значения потребностей
+    // Получаем значения потребностей
     const demandInputs = document.querySelectorAll("input[placeholder='П']");
-    const demandCount = demandInputs.length; // Количество потребителей
-    let demands = [];
-
-    demandInputs.forEach(input => {
-        let value = Number(input.value) || 0;
-        demands.push(value);
-        totalDemand += value;
-    });
+    let demands = Array.from(demandInputs, input => Number(input.value) || 0);
+    totalDemand = demands.reduce((a, b) => a + b, 0);
 
     console.log("Сумма поставщиков:", totalSupply);
     console.log("Сумма потребителей:", totalDemand);
-    console.log("Массив поставщиков:", supplies);
-    console.log("Массив потребителей:", demands);
-
-    if (isNaN(totalSupply) || isNaN(totalDemand)) {
-        console.error("Ошибка: Введены некорректные данные.");
-        return;
-    }
 
     if (totalSupply !== totalDemand) {
-        document.getElementById('transport-solution-output').innerHTML = "Транспортная задача несбалансирована!";
+        outputDiv.innerHTML = "<p style='color: red;'>Транспортная задача несбалансирована!</p>";
         return;
     }
 
-    // Здесь будет реализация метода минимального элемента
-    document.getElementById('transport-solution-output').innerHTML = "Запускаем алгоритм...";
+    // Запускаем алгоритм решения
 
-    // Далее вызываем метод решения (например, метод минимального элемента)
-    solveByMinElementMethod(supplies, demands, supplyCount, demandCount);
+
+    solveByMinElementMethod(supplies, demands, supplyInputs.length, demandInputs.length);
 }
+
 
 function solveByMinElementMethod(supplies, demands, supplyCount, demandCount) {
     console.log("Запущен метод минимального элемента");
-    console.log("Поставщики:", supplies);
-    console.log("Потребители:", demands);
 
-    // Получаем матрицу стоимости перевозок
     let costInputs = document.querySelectorAll(".cost-input");
+
+    if (costInputs.length !== supplyCount * demandCount) {
+        console.error("Ошибка: Некорректное количество ячеек стоимости!");
+        return;
+    }
+
     let costMatrix = [];
+    let isAvailable = Array.from({ length: supplyCount }, () => Array(demandCount).fill(true));
     let index = 0;
 
     for (let i = 0; i < supplyCount; i++) {
@@ -432,20 +418,21 @@ function solveByMinElementMethod(supplies, demands, supplyCount, demandCount) {
         costMatrix.push(row);
     }
 
-    console.log("Матрица стоимости:", costMatrix);
+    console.log("Исходная матрица стоимости:", JSON.stringify(costMatrix));
 
-    // Инициализация матрицы распределений (изначально заполнена нулями)
     let allocation = Array.from({ length: supplyCount }, () => Array(demandCount).fill(0));
+    let remainingSupplies = [...supplies];
+    let remainingDemands = [...demands];
 
-    // Алгоритм минимального элемента
-    while (supplies.some(s => s > 0) && demands.some(d => d > 0)) {
-        // Находим минимальный элемент в матрице стоимости
+    let outputDiv = document.getElementById('transport-solution-output');
+
+    while (remainingSupplies.some(s => s > 0) && remainingDemands.some(d => d > 0)) {
         let minCost = Infinity;
         let minI = -1, minJ = -1;
 
         for (let i = 0; i < supplyCount; i++) {
             for (let j = 0; j < demandCount; j++) {
-                if (supplies[i] > 0 && demands[j] > 0 && costMatrix[i][j] < minCost) {
+                if (isAvailable[i][j] && remainingSupplies[i] > 0 && remainingDemands[j] > 0 && costMatrix[i][j] < minCost) {
                     minCost = costMatrix[i][j];
                     minI = i;
                     minJ = j;
@@ -453,27 +440,63 @@ function solveByMinElementMethod(supplies, demands, supplyCount, demandCount) {
             }
         }
 
-        // Определяем, сколько можно отправить
-        let quantity = Math.min(supplies[minI], demands[minJ]);
+        if (minI === -1 || minJ === -1) {
+            console.error("Ошибка: Не удалось найти минимальный элемент.");
+            break;
+        }
+
+        let quantity = Math.min(remainingSupplies[minI], remainingDemands[minJ]);
         allocation[minI][minJ] = quantity;
+        remainingSupplies[minI] -= quantity;
+        remainingDemands[minJ] -= quantity;
 
-        // Обновляем остатки
-        supplies[minI] -= quantity;
-        demands[minJ] -= quantity;
+        // Запрещаем использовать выбранную ячейку дальше
+        isAvailable[minI][minJ] = false;
 
-        // Выводим таблицу после каждого шага
-        displayTable(allocation, costMatrix, `Шаг решения (выбрана ячейка [${minI + 1}, ${minJ + 1}])`);
+        if (remainingSupplies[minI] === 0) {
+            for (let j = 0; j < demandCount; j++) {
+                isAvailable[minI][j] = false;
+            }
+        }
+
+        if (remainingDemands[minJ] === 0) {
+            for (let i = 0; i < supplyCount; i++) {
+                isAvailable[i][minJ] = false;
+            }
+        }
+
+        console.log(`Выбрана ячейка (${minI}, ${minJ}) со стоимостью ${minCost} и количеством ${quantity}`);
+        console.log("Матрица доступности после шага:", JSON.stringify(isAvailable));
+        outputDiv.innerHTML += displayTable(allocation, costMatrix, `Шаг решения (ячейка [${minI + 1}, ${minJ + 1}])`);
     }
 
-    // Выводим итоговое решение
-    displayFinalSolution(allocation, costMatrix);
+    outputDiv.innerHTML += displayFinalSolution(allocation, costMatrix);
 }
 
-// Функция для вывода окончательного решения
-function displayFinalSolution(allocation, costs) {
-    const outputDiv = document.getElementById('transport-solution-output');
-    let totalCost = 0;
 
+function displayTable(allocation, costMatrix, stepTitle) {
+    let tableHTML = `<h3>${stepTitle}</h3><table class='table table-bordered'><tr><th></th>`;
+
+    for (let j = 0; j < allocation[0].length; j++) {
+        tableHTML += `<th>Потребитель ${j + 1}</th>`;
+    }
+    tableHTML += `</tr>`;
+
+    for (let i = 0; i < allocation.length; i++) {
+        tableHTML += `<tr><th>Поставщик ${i + 1}</th>`;
+        for (let j = 0; j < allocation[i].length; j++) {
+            tableHTML += `<td>${allocation[i][j]} (${costMatrix[i][j] === Infinity ? 'X' : costMatrix[i][j]})</td>`;
+        }
+        tableHTML += `</tr>`;
+    }
+    tableHTML += `</table>`;
+    return tableHTML;
+}
+
+
+
+function displayFinalSolution(allocation, costs) {
+    let totalCost = 0;
     let tableHTML = `<h3>Итоговое распределение</h3><table class='table table-bordered'><tr><th></th>`;
 
     for (let j = 0; j < allocation[0].length; j++) {
@@ -484,17 +507,29 @@ function displayFinalSolution(allocation, costs) {
     for (let i = 0; i < allocation.length; i++) {
         tableHTML += `<tr><th>Поставщик ${i + 1}</th>`;
         for (let j = 0; j < allocation[i].length; j++) {
-            tableHTML += `<td>${allocation[i][j]} (${costs[i][j]})</td>`;
-            totalCost += allocation[i][j] * costs[i][j];
+            let allocValue = allocation[i][j] || 0; // Если undefined → 0
+            let costValue = costs[i][j] || 0; // Если undefined → 0
+
+            console.log(`allocation[${i}][${j}] =`, allocValue);
+            console.log(`costs[${i}][${j}] =`, costValue);
+
+            tableHTML += `<td>${allocValue} (${costValue === Infinity ? 'X' : costValue})</td>`;
+
+            if (!isNaN(allocValue) && !isNaN(costValue) && costValue !== Infinity) {
+                totalCost += allocValue * costValue;
+            }
         }
         tableHTML += `</tr>`;
     }
     tableHTML += `</table>`;
 
-    tableHTML += `<h4>Общая стоимость перевозки: ${totalCost}</h4>`;
-    outputDiv.innerHTML += tableHTML;
-}
+    if (isNaN(totalCost)) {
+        totalCost = 0;
+    }
 
+    tableHTML += `<h4>Общая стоимость перевозки: ${totalCost}</h4>`;
+    return tableHTML;
+}
     </script>
 </head>
 <body class="container mt-4">
