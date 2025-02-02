@@ -328,6 +328,46 @@ function displayFinalSolution(result) {
     output.appendChild(iterationDiv);
 }
 
+function updateTransportTables() {
+    const supplyCount = document.getElementById('supply-count').value;
+    const demandCount = document.getElementById('demand-count').value;
+    const transportTable = document.getElementById('transport-table');
+
+    transportTable.innerHTML = '';
+
+    // Заголовок потребителей
+    let headerRow = '<tr><th></th>';
+    for (let j = 0; j < demandCount; j++) {
+        headerRow += `<th>Потребитель ${j + 1}</th>`;
+    }
+    headerRow += '<th></th></tr>';
+    transportTable.innerHTML += headerRow;
+
+    // Строка потребностей
+    let demandRow = '<tr><th>Потребности</th>';
+    for (let j = 0; j < demandCount; j++) {
+        demandRow += `<td><input type='number' class='form-control' placeholder='Потр'></td>`;
+    }
+    demandRow += '<td></td></tr>';
+    transportTable.innerHTML += demandRow;
+
+    // Основная таблица с поставщиками и матрицей затрат
+    for (let i = 0; i < supplyCount; i++) {
+        let row = `<tr><th>Поставщик ${i + 1}</th>`;
+        row += `<td><input type='number' class='form-control' placeholder='Возм'></td>`; // Возможности поставщика
+        for (let j = 0; j < demandCount; j++) {
+            row += `<td><input type='number' class='form-control' placeholder='Затр'></td>`;
+        }
+        row += '</tr>';
+        transportTable.innerHTML += row;
+    }
+}
+
+
+    function solveTransportProblem() {
+        document.getElementById('transport-solution-output').innerHTML = "Решение в процессе...";
+        // Реализация решения транспортной задачи будет добавлена позже
+    }
     </script>
 </head>
 <body class="container mt-4">
@@ -412,6 +452,31 @@ function displayFinalSolution(result) {
         <h3 class="mt-4">Результат:</h3>
         <div id="solution-output-simplex" class="mt-3"></div>
     </div>
+
+    <div id="transport-problem" class="content-section" style="display: none;">
+    <h2 class="mb-4">Транспортная задача</h2>
+
+    <div class="form-group">
+        <label for="supply-count">Количество поставщиков:</label>
+        <input type="number" id="supply-count" class="form-control" min="1" value="2" onchange="updateTransportTables()">
+    </div>
+
+    <div class="form-group">
+        <label for="demand-count">Количество потребителей:</label>
+        <input type="number" id="demand-count" class="form-control" min="1" value="2" onchange="updateTransportTables()">
+    </div>
+
+    <button class="btn btn-primary mt-2" onclick="updateTransportTables()">Обновить таблицу</button>
+
+    <h3 class="mt-4">Транспортная таблица:</h3>
+    <table class="table" id="transport-table"></table>
+
+    <button class="btn btn-success mt-3" onclick="solveTransportProblem()">Решить</button>
+
+    <h3 class="mt-4">Результат:</h3>
+    <p id="transport-solution-output"></p>
+    </div>
+
 
 <!-- Стиль -->
 <style>
