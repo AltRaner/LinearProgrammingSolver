@@ -346,7 +346,7 @@ function updateTransportTables() {
     // Строка потребностей, смещенная на одну ячейку вправо
     let demandRow = '<tr><th></th><th>Потребности</th>';
     for (let j = 0; j < demandCount; j++) {
-        demandRow += `<td><input type='number' class='form-control' placeholder='Потр'></td>`;
+        demandRow += `<td><input type='number' class='form-control' placeholder='П'></td>`;
     }
     demandRow += '</tr>';
     transportTable.innerHTML += demandRow;
@@ -354,9 +354,9 @@ function updateTransportTables() {
     // Основная таблица с поставщиками и матрицей затрат
     for (let i = 0; i < supplyCount; i++) {
         let row = `<tr><th>Поставщик ${i + 1}</th>`;
-        row += `<td><input type='number' class='form-control' placeholder='Возм'></td>`; // Возможности поставщика
+        row += `<td><input type='number' class='form-control' placeholder='В'></td>`; // Возможности поставщика
         for (let j = 0; j < demandCount; j++) {
-            row += `<td><input type='number' class='form-control' placeholder='Затр'></td>`;
+            row += `<td><input type='number' class='form-control' placeholder='М'></td>`;
         }
         row += '</tr>';
         transportTable.innerHTML += row;
