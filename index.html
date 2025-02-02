@@ -335,20 +335,20 @@ function updateTransportTables() {
 
     transportTable.innerHTML = '';
 
-    // Заголовок потребителей
-    let headerRow = '<tr><th></th>';
+    // Заголовок потребителей, смещенный на одну ячейку вправо
+    let headerRow = '<tr><th></th><th></th>';
     for (let j = 0; j < demandCount; j++) {
         headerRow += `<th>Потребитель ${j + 1}</th>`;
     }
-    headerRow += '<th></th></tr>';
+    headerRow += '</tr>';
     transportTable.innerHTML += headerRow;
 
-    // Строка потребностей
-    let demandRow = '<tr><th>Потребности</th>';
+    // Строка потребностей, смещенная на одну ячейку вправо
+    let demandRow = '<tr><th></th><th>Потребности</th>';
     for (let j = 0; j < demandCount; j++) {
         demandRow += `<td><input type='number' class='form-control' placeholder='Потр'></td>`;
     }
-    demandRow += '<td></td></tr>';
+    demandRow += '</tr>';
     transportTable.innerHTML += demandRow;
 
     // Основная таблица с поставщиками и матрицей затрат
@@ -362,6 +362,7 @@ function updateTransportTables() {
         transportTable.innerHTML += row;
     }
 }
+
 
 
     function solveTransportProblem() {
