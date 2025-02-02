@@ -167,6 +167,7 @@ function solveSimplexMethod() {
     let variablesCount = parseInt(document.getElementById('variables-count').value);
     let constraintsCount = parseInt(document.getElementById('simplex-constraints-count').value);
     let maximize = document.getElementById('simplex-opt-goal')?.checked ?? false;
+    let dualProblem = document.getElementById('dual-problem').checked;  // Проверяем, выбран ли флажок "Двойственная задача"
 
     let objCoefficients = [];
     let constraints = [];
@@ -190,8 +191,12 @@ function solveSimplexMethod() {
         constraints.push({ coeffs: constraint, sign, b });
     });
 
-    console.log("Целевая функция:", objCoefficients);
-    console.log("Ограничения:", constraints);
+    // Если выбран флажок "Двойственная задача", преобразуем данные
+    if (dualProblem) {
+        let dualData = convertToDualProblem(objCoefficients, constraints);
+        objCoefficients = dualData.objCoefficients;
+        constraints = dualData.constraints;
+    }
 
     // Применяем симплекс-метод для решения задачи
     let result = simplexMethod(objCoefficients, constraints, maximize);
@@ -200,88 +205,102 @@ function solveSimplexMethod() {
     displayFinalSolution(result);
 }
 
-// Симплекс-метод для решения задачи
+// Функция для преобразования данных в формат двойственной задачи
+function convertToDualProblem(objCoefficients, constraints) {
+    let dualObjCoefficients = [];
+    let dualConstraints = [];
+
+    // Преобразуем данные целевой функции для двойственной задачи
+    for (let i = 0; i < constraints.length; i++) {
+        dualObjCoefficients.push(constraints[i].b); // Правая часть ограничений становится коэффициентами целевой функции
+    }
+
+    // Преобразуем ограничения для двойственной задачи
+    for (let j = 0; j < objCoefficients.length; j++) {
+        let dualConstraint = { coeffs: [], sign: "<=", b: objCoefficients[j] };  // В двойственной задаче это становится ограничением
+        for (let i = 0; i < constraints.length; i++) {
+            dualConstraint.coeffs.push(constraints[i].coeffs[j]);
+        }
+        dualConstraints.push(dualConstraint);
+    }
+
+    return { objCoefficients: dualObjCoefficients, constraints: dualConstraints };
+}
+
 function simplexMethod(c, constraints, maximize) {
     let m = constraints.length;
     let n = c.length;
     let table = [];
 
-    // Строим начальную симплекс-таблицу
+    // Преобразуем ограничения в каноническую форму (добавляем искусственные переменные)
     for (let i = 0; i < m; i++) {
-        let row = constraints[i].coeffs.concat([constraints[i].b]);
+        let row = [...constraints[i].coeffs];
+        for (let j = 0; j < m; j++) {
+            row.push(i === j ? 1 : 0);
+        }
+        row.push(constraints[i].b);
         table.push(row);
     }
 
-    let objRow = c.concat([0]);
+    // Добавляем строку целевой функции (с коэффициентами, умноженными на -1 для минимизации)
+    let objRow = [...c.map(val => maximize ? -val : val), ...Array(m).fill(0), 0];
     table.push(objRow);
 
-    let solution = Array(n).fill(0); // начальное решение
     let iterations = 0;
-    let isOptimal = false;
-    let iterationResults = []; // Сюда будем сохранять все таблицы
+    let iterationResults = [];
 
-    // Итерации симплекс-метода
-    while (!isOptimal && iterations < 100) {
-        // Сохраняем текущую таблицу
+    while (true) {
+        // Сохраняем текущее состояние таблицы
         iterationResults.push(cloneTable(table));
 
-        // Поиск минимального элемента в строке целевой функции
-        let pivotCol = -1;
-        let minVal = maximize ? Math.min(...table[m]) : Math.max(...table[m]);
+        // Определяем ведущий столбец (с наименьшим значением в строке Z)
+        let pivotCol = table[m].slice(0, n + m).indexOf(Math.min(...table[m].slice(0, n + m)));
+        if (table[m][pivotCol] >= 0) break; // Оптимальное решение найдено
 
-        if (minVal >= 0 && !maximize || minVal <= 0 && maximize) {
-            isOptimal = true; // если нет отрицательных элементов, решение оптимально
-        } else {
-            pivotCol = table[m].indexOf(minVal);
+        // Определяем ведущую строку (правило минимального положительного отношения)
+        let ratios = table.slice(0, m).map(row => (row[pivotCol] > 0 ? row[n + m] / row[pivotCol] : Infinity));
+        let pivotRow = ratios.indexOf(Math.min(...ratios));
 
-            // Находим строку для разворота
-            let ratios = [];
-            for (let i = 0; i < m; i++) {
-                if (table[i][pivotCol] > 0) {
-                    ratios.push(table[i][n] / table[i][pivotCol]);
-                } else {
-                    ratios.push(Infinity);
-                }
-            }
+        if (ratios[pivotRow] === Infinity) {
+            console.error("Оптимального решения не существует");
+            return null;
+        }
 
-            let pivotRow = ratios.indexOf(Math.min(...ratios));
-
-            // Проводим разворот
-            let pivotValue = table[pivotRow][pivotCol];
-            for (let j = 0; j <= n; j++) {
-                table[pivotRow][j] /= pivotValue;
-            }
-
-            // Обновление других строк
-            for (let i = 0; i <= m; i++) {
-                if (i !== pivotRow) {
-                    let ratio = table[i][pivotCol];
-                    for (let j = 0; j <= n; j++) {
-                        table[i][j] -= ratio * table[pivotRow][j];
-                    }
+        // Выполняем обновление таблицы (гауссово исключение)
+        let pivotValue = table[pivotRow][pivotCol];
+        for (let j = 0; j <= n + m; j++) {
+            table[pivotRow][j] /= pivotValue;
+        }
+        for (let i = 0; i <= m; i++) {
+            if (i !== pivotRow) {
+                let ratio = table[i][pivotCol];
+                for (let j = 0; j <= n + m; j++) {
+                    table[i][j] -= ratio * table[pivotRow][j];
                 }
             }
         }
         iterations++;
+        if (iterations > 100) break; // Предотвращение бесконечного цикла
     }
 
-    // Сохраняем последнюю таблицу (финальную)
-    iterationResults.push(cloneTable(table));
-
-    // Извлекаем решение из симплекс-таблицы
-    for (let i = 0; i < n; i++) {
-        solution[i] = table[m][i];
+    // Извлекаем решение
+    let solution = Array(n).fill(0);
+    for (let i = 0; i < m; i++) {
+        let basicVar = table[i].slice(0, n + m).findIndex(val => val === 1);
+        if (basicVar >= 0 && basicVar < n) {
+            solution[basicVar] = table[i][n + m];
+        }
     }
 
-    return { solution, optimalValue: table[m][n], iterationResults };
+    return { solution, optimalValue: table[m][n + m], iterationResults };
 }
 
-// Клонирование таблицы для сохранения состояния в каждой итерации
+// Функция для клонирования таблицы
 function cloneTable(table) {
     return table.map(row => [...row]);
 }
 
-// Функция для отображения решения и каждой итерации
+// Функция для отображения результата и шагов решения
 function displayFinalSolution(result) {
     let output = document.getElementById('solution-output-simplex');
     output.innerHTML = '';
@@ -291,11 +310,11 @@ function displayFinalSolution(result) {
         return;
     }
 
-    // Выводим решение для всех переменных
+    // Выводим оптимальное решение
     let solutionText = result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(' ');
     output.innerHTML = `<p class="text-success">Оптимальное решение:<br>${solutionText}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
 
-    // Отображаем таблицы каждой итерации
+    // Выводим шаги решения
     let iterationDiv = document.createElement('div');
     iterationDiv.innerHTML = `<h4>Решение шаг за шагом:</h4>`;
     result.iterationResults.forEach((iterationTable, index) => {
@@ -378,12 +397,12 @@ function displayFinalSolution(result) {
             </tbody>
         </table>
 
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="simplex-opt-goal">
-            <label class="form-check-label" for="simplex-opt-goal">
-                Максимизировать
-            </label>
-        </div>
+        <label for="simplex-opt-goal">Максимизировать</label>
+        <input type="checkbox" id="simplex-opt-goal">
+
+        <label for="dual-problem">Двойственная задача</label>
+        <input type="checkbox" id="dual-problem">
+
 
         <h3 class="mt-4">Коэффициенты ограничений:</h3>
         <table class="table" id="simplex-constraints-table"></table>
