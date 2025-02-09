@@ -363,51 +363,28 @@ function updateTransportTables() {
     }
 }
 
-    function solveTransportProblem() {
+function solveTransportProblem() {
     let outputDiv = document.getElementById('transport-solution-output');
-    outputDiv.innerHTML = ""; // Очищаем вывод
+    outputDiv.innerHTML = "";
 
-    let totalSupply = 0;
-    let totalDemand = 0;
-
-    // Получаем значения поставщиков
-    const supplyInputs = document.querySelectorAll("input[placeholder='В']");
+    let supplyInputs = document.querySelectorAll("input[placeholder='В']");
     let supplies = Array.from(supplyInputs, input => Number(input.value) || 0);
-    totalSupply = supplies.reduce((a, b) => a + b, 0);
-
-    // Получаем значения потребностей
-    const demandInputs = document.querySelectorAll("input[placeholder='П']");
+    let demandInputs = document.querySelectorAll("input[placeholder='П']");
     let demands = Array.from(demandInputs, input => Number(input.value) || 0);
-    totalDemand = demands.reduce((a, b) => a + b, 0);
 
-    console.log("Сумма поставщиков:", totalSupply);
-    console.log("Сумма потребителей:", totalDemand);
+    let totalSupply = supplies.reduce((a, b) => a + b, 0);
+    let totalDemand = demands.reduce((a, b) => a + b, 0);
 
     if (totalSupply !== totalDemand) {
         outputDiv.innerHTML = "<p style='color: red;'>Транспортная задача несбалансирована!</p>";
         return;
     }
 
-    // Запускаем алгоритм решения
-
-
-    solveByMinElementMethod(supplies, demands, supplyInputs.length, demandInputs.length);
-}
-
-
-function solveByMinElementMethod(supplies, demands, supplyCount, demandCount) {
-    console.log("Запущен метод минимального элемента");
-
     let costInputs = document.querySelectorAll(".cost-input");
-
-    if (costInputs.length !== supplyCount * demandCount) {
-        console.error("Ошибка: Некорректное количество ячеек стоимости!");
-        return;
-    }
-
     let costMatrix = [];
-    let isAvailable = Array.from({ length: supplyCount }, () => Array(demandCount).fill(true));
     let index = 0;
+    let supplyCount = supplies.length;
+    let demandCount = demands.length;
 
     for (let i = 0; i < supplyCount; i++) {
         let row = [];
@@ -418,61 +395,261 @@ function solveByMinElementMethod(supplies, demands, supplyCount, demandCount) {
         costMatrix.push(row);
     }
 
-    console.log("Исходная матрица стоимости:", JSON.stringify(costMatrix));
+    let allocation = solveByMinElementMethod(supplies, demands, costMatrix, outputDiv);
+    outputDiv.innerHTML += displayFinalSolution(allocation, costMatrix);
+}
 
+function solveByMinElementMethod(supplies, demands, costMatrix, outputDiv) {
+    let supplyCount = supplies.length;
+    let demandCount = demands.length;
     let allocation = Array.from({ length: supplyCount }, () => Array(demandCount).fill(0));
     let remainingSupplies = [...supplies];
     let remainingDemands = [...demands];
 
-    let outputDiv = document.getElementById('transport-solution-output');
-
     while (remainingSupplies.some(s => s > 0) && remainingDemands.some(d => d > 0)) {
+        let minCostCells = [];
         let minCost = Infinity;
-        let minI = -1, minJ = -1;
 
         for (let i = 0; i < supplyCount; i++) {
             for (let j = 0; j < demandCount; j++) {
-                if (isAvailable[i][j] && remainingSupplies[i] > 0 && remainingDemands[j] > 0 && costMatrix[i][j] < minCost) {
-                    minCost = costMatrix[i][j];
-                    minI = i;
-                    minJ = j;
+                if (remainingSupplies[i] > 0 && remainingDemands[j] > 0) {
+                    if (costMatrix[i][j] < minCost) {
+                        minCost = costMatrix[i][j];
+                        minCostCells = [{ i, j }];
+                    } else if (costMatrix[i][j] === minCost) {
+                        minCostCells.push({ i, j });
+                    }
                 }
             }
         }
 
-        if (minI === -1 || minJ === -1) {
-            console.error("Ошибка: Не удалось найти минимальный элемент.");
-            break;
-        }
-
+        let { i: minI, j: minJ } = minCostCells[Math.floor(Math.random() * minCostCells.length)];
         let quantity = Math.min(remainingSupplies[minI], remainingDemands[minJ]);
         allocation[minI][minJ] = quantity;
         remainingSupplies[minI] -= quantity;
         remainingDemands[minJ] -= quantity;
 
-        // Запрещаем использовать выбранную ячейку дальше
-        isAvailable[minI][minJ] = false;
-
-        if (remainingSupplies[minI] === 0) {
-            for (let j = 0; j < demandCount; j++) {
-                isAvailable[minI][j] = false;
-            }
-        }
-
-        if (remainingDemands[minJ] === 0) {
-            for (let i = 0; i < supplyCount; i++) {
-                isAvailable[i][minJ] = false;
-            }
-        }
-
-        console.log(`Выбрана ячейка (${minI}, ${minJ}) со стоимостью ${minCost} и количеством ${quantity}`);
-        console.log("Матрица доступности после шага:", JSON.stringify(isAvailable));
-        outputDiv.innerHTML += displayTable(allocation, costMatrix, `Шаг решения (ячейка [${minI + 1}, ${minJ + 1}])`);
+        outputDiv.innerHTML += displayTable(allocation, costMatrix, "Промежуточное распределение");
     }
 
-    outputDiv.innerHTML += displayFinalSolution(allocation, costMatrix);
+    return optimizeSolution(allocation, costMatrix, outputDiv);
 }
 
+function optimizeSolution(allocation, costMatrix, outputDiv) {
+    while (!checkOptimality(allocation, costMatrix)) {
+        let { i, j } = findBestImprovement(allocation, costMatrix);
+        let cycle = findClosedLoop(allocation, i, j);
+
+        if (!cycle) return allocation;
+
+        let minFlow = Math.min(...cycle.filter((_, k) => k % 2 !== 0).map(([x, y]) => allocation[x][y]));
+        cycle.forEach(([x, y], k) => allocation[x][y] += (k % 2 === 0 ? minFlow : -minFlow));
+
+        outputDiv.innerHTML += displayTable(allocation, costMatrix, "Оптимизационный шаг");
+    }
+    return allocation;
+}
+
+        function checkOptimality(allocation, costMatrix) {
+    let u = Array(allocation.length).fill(null);
+    let v = Array(allocation[0].length).fill(null);
+    u[0] = 0;
+
+    let assigned;
+    let iterations = 0;
+    const maxIterations = allocation.length * allocation[0].length; // Ограничение по итерациям
+
+    do {
+        assigned = false;
+        for (let i = 0; i < allocation.length; i++) {
+            for (let j = 0; j < allocation[i].length; j++) {
+                if (allocation[i][j] > 0) {
+                    if (u[i] !== null && v[j] === null) {
+                        v[j] = costMatrix[i][j] - u[i];
+                        assigned = true;
+                    } else if (u[i] === null && v[j] !== null) {
+                        u[i] = costMatrix[i][j] - v[j];
+                        assigned = true;
+                    }
+                }
+            }
+        }
+        iterations++;
+        if (iterations > maxIterations) {
+            console.error("Ошибка: Не удалось рассчитать потенциалы. Прерываем оптимизацию.");
+            return true; // Останавливаем бесконечный цикл
+        }
+    } while (assigned);
+
+    for (let i = 0; i < costMatrix.length; i++) {
+        for (let j = 0; j < costMatrix[i].length; j++) {
+            if (allocation[i][j] === 0) {
+                let delta = costMatrix[i][j] - (u[i] + v[j]);
+                if (delta < 0) return false; // Найдено улучшение, решение не оптимально
+            }
+        }
+    }
+    return true; // Если нет отрицательных оценок, решение оптимально
+}
+
+
+        function improveSolution(allocation, costMatrix) {
+    let u = Array(allocation.length).fill(null);
+    let v = Array(allocation[0].length).fill(null);
+    u[0] = 0;
+
+    let assigned;
+    do {
+        assigned = false;
+        for (let i = 0; i < allocation.length; i++) {
+            for (let j = 0; j < allocation[i].length; j++) {
+                if (allocation[i][j] > 0) {
+                    if (u[i] !== null && v[j] === null) {
+                        v[j] = costMatrix[i][j] - u[i];
+                        assigned = true;
+                    } else if (u[i] === null && v[j] !== null) {
+                        u[i] = costMatrix[i][j] - v[j];
+                        assigned = true;
+                    }
+                }
+            }
+        }
+    } while (assigned);
+
+    let minDelta = Infinity;
+    let minI = -1, minJ = -1;
+
+    for (let i = 0; i < costMatrix.length; i++) {
+        for (let j = 0; j < costMatrix[i].length; j++) {
+            if (allocation[i][j] === 0) {
+                let delta = costMatrix[i][j] - (u[i] + v[j]);
+                if (delta < minDelta) {
+                    minDelta = delta;
+                    minI = i;
+                    minJ = j;
+                }
+            }
+        }
+    }
+
+    if (minI === -1 || minJ === -1) {
+        console.error("Ошибка: Не удалось найти отрицательный потенциал.");
+        return allocation;
+    }
+
+    console.log(`Оптимизируем ячейку (${minI + 1}, ${minJ + 1})`);
+
+    allocation[minI][minJ] = 1; // Добавляем в базис, далее нужно пересчитать цикл перевозок
+
+    return allocation;
+}
+
+function findClosedLoop(allocation, startI, startJ) {
+    let rows = allocation.length;
+    let cols = allocation[0].length;
+    let visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+    let queue = [{ i: startI, j: startJ, path: [] }];
+
+    while (queue.length > 0) {
+        let { i, j, path } = queue.shift();
+        if (path.length > 0 && i === startI && j === startJ) {
+            return path;
+        }
+
+        visited[i][j] = true;
+
+        // Добавляем соседей
+        for (let k = 0; k < rows; k++) {
+            if (k !== i && allocation[k][j] > 0 && !visited[k][j]) {
+                queue.push({ i: k, j, path: [...path, [k, j]] });
+            }
+        }
+        for (let k = 0; k < cols; k++) {
+            if (k !== j && allocation[i][k] > 0 && !visited[i][k]) {
+                queue.push({ i, j: k, path: [...path, [i, k]] });
+            }
+        }
+    }
+    return null;
+}
+
+function findBestImprovement(allocation, costMatrix) {
+    let u = Array(allocation.length).fill(null);
+    let v = Array(allocation[0].length).fill(null);
+    u[0] = 0;
+
+    let assigned;
+    do {
+        assigned = false;
+        for (let i = 0; i < allocation.length; i++) {
+            for (let j = 0; j < allocation[i].length; j++) {
+                if (allocation[i][j] > 0) {
+                    if (u[i] !== null && v[j] === null) {
+                        v[j] = costMatrix[i][j] - u[i];
+                        assigned = true;
+                    } else if (u[i] === null && v[j] !== null) {
+                        u[i] = costMatrix[i][j] - v[j];
+                        assigned = true;
+                    }
+                }
+            }
+        }
+    } while (assigned);
+
+    let minDelta = Infinity;
+    let bestI = -1, bestJ = -1;
+
+    for (let i = 0; i < costMatrix.length; i++) {
+        for (let j = 0; j < costMatrix[i].length; j++) {
+            if (allocation[i][j] === 0) {
+                let delta = costMatrix[i][j] - (u[i] + v[j]);
+                if (delta < minDelta) {
+                    minDelta = delta;
+                    bestI = i;
+                    bestJ = j;
+                }
+            }
+        }
+    }
+
+    return { i: bestI, j: bestJ };
+}
+
+        function displayTable(allocation, costMatrix, stepTitle) {
+            let tableHTML = `<h3>${stepTitle}</h3><table class='table table-bordered'><tr><th></th>`;
+            for (let j = 0; j < allocation[0].length; j++) {
+                tableHTML += `<th>Потребитель ${j + 1}</th>`;
+            }
+            tableHTML += `</tr>`;
+            for (let i = 0; i < allocation.length; i++) {
+                tableHTML += `<tr><th>Поставщик ${i + 1}</th>`;
+                for (let j = 0; j < allocation[i].length; j++) {
+                    tableHTML += `<td>${allocation[i][j]} (${costMatrix[i][j]})</td>`;
+                }
+                tableHTML += `</tr>`;
+            }
+            tableHTML += `</table>`;
+            return tableHTML;
+        }
+
+        function displayFinalSolution(allocation, costMatrix) {
+            let totalCost = 0;
+            let tableHTML = `<h3>Итоговое распределение</h3><table class='table table-bordered'><tr><th></th>`;
+            for (let j = 0; j < allocation[0].length; j++) {
+                tableHTML += `<th>Потребитель ${j + 1}</th>`;
+            }
+            tableHTML += `</tr>`;
+            for (let i = 0; i < allocation.length; i++) {
+                tableHTML += `<tr><th>Поставщик ${i + 1}</th>`;
+                for (let j = 0; j < allocation[i].length; j++) {
+                    totalCost += allocation[i][j] * costMatrix[i][j];
+                    tableHTML += `<td>${allocation[i][j]} (${costMatrix[i][j]})</td>`;
+                }
+                tableHTML += `</tr>`;
+            }
+            tableHTML += `</table><h4>Общая стоимость перевозки: ${totalCost}</h4>`;
+            return tableHTML;
+        }
 
 function displayTable(allocation, costMatrix, stepTitle) {
     let tableHTML = `<h3>${stepTitle}</h3><table class='table table-bordered'><tr><th></th>`;
@@ -493,43 +670,6 @@ function displayTable(allocation, costMatrix, stepTitle) {
     return tableHTML;
 }
 
-
-
-function displayFinalSolution(allocation, costs) {
-    let totalCost = 0;
-    let tableHTML = `<h3>Итоговое распределение</h3><table class='table table-bordered'><tr><th></th>`;
-
-    for (let j = 0; j < allocation[0].length; j++) {
-        tableHTML += `<th>Потребитель ${j + 1}</th>`;
-    }
-    tableHTML += `</tr>`;
-
-    for (let i = 0; i < allocation.length; i++) {
-        tableHTML += `<tr><th>Поставщик ${i + 1}</th>`;
-        for (let j = 0; j < allocation[i].length; j++) {
-            let allocValue = allocation[i][j] || 0; // Если undefined → 0
-            let costValue = costs[i][j] || 0; // Если undefined → 0
-
-            console.log(`allocation[${i}][${j}] =`, allocValue);
-            console.log(`costs[${i}][${j}] =`, costValue);
-
-            tableHTML += `<td>${allocValue} (${costValue === Infinity ? 'X' : costValue})</td>`;
-
-            if (!isNaN(allocValue) && !isNaN(costValue) && costValue !== Infinity) {
-                totalCost += allocValue * costValue;
-            }
-        }
-        tableHTML += `</tr>`;
-    }
-    tableHTML += `</table>`;
-
-    if (isNaN(totalCost)) {
-        totalCost = 0;
-    }
-
-    tableHTML += `<h4>Общая стоимость перевозки: ${totalCost}</h4>`;
-    return tableHTML;
-}
     </script>
 </head>
 <body class="container mt-4">
@@ -542,9 +682,13 @@ function displayFinalSolution(allocation, costs) {
     </nav>
     
     <div id="graphic-method" class="content-section" style="display: none;">
-        <h2>Графический метод</h2>
-        <label for="constraints-count">Количество ограничений:</label>
-        <input type="number" id="constraints-count" class="form-control" min="1" value="2">
+        <h2 class="mt-4">Графический метод</h2>
+
+        <div class="form-group">
+            <label for="constraints-count">Количество ограничений:</label>
+            <input type="number" id="constraints-count" class="form-control" min="1" value="2">
+        </div>
+
         <button class="btn btn-primary mt-2" onclick="updateTables()">Обновить таблицы</button>
 
         <h3>Коэффициенты целевой функции:</h3>
@@ -567,8 +711,9 @@ function displayFinalSolution(allocation, costs) {
         <p id="solution-output"></p>
     </div>
 
-    <div id="simplex-method" class="content-section" style="display: block;">
+    <div id="simplex-method" class="content-section" style="display: none;">
         <h2 class="mb-4">Симплекс-метод</h2>
+        
         <div class="form-group">
             <label for="variables-count">Количество переменных:</label>
             <input type="number" id="variables-count" class="form-control" min="1" value="2" onchange="updateSimplexTables()">
@@ -615,7 +760,7 @@ function displayFinalSolution(allocation, costs) {
         <div id="solution-output-simplex" class="mt-3"></div>
     </div>
 
-    <div id="transport-problem" class="content-section" style="display: none;">
+    <div id="transport-problem" class="content-section" style="display: block;">
     <h2 class="mb-4">Транспортная задача</h2>
 
     <div class="form-group">
