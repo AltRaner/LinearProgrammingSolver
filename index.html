@@ -649,9 +649,9 @@ function displayTable(allocation, costMatrix, stepTitle) {
     <h1 class="text-center">Решение задач линейного программирования</h1>
 
     <nav class="nav nav-pills justify-content-center my-3">
-        <button class="nav-link" onclick="showSection('graphic-method')">Графический метод</button>
-        <button class="nav-link" onclick="showSection('simplex-method')">Симплекс-метод</button>
-        <button class="nav-link" onclick="showSection('transport-problem')">Транспортная задача</button>
+        <button class="btm" onclick="showSection('graphic-method')">Графический метод</button>
+        <button class="btm" onclick="showSection('simplex-method')">Симплекс-метод</button>
+        <button class="btm" onclick="showSection('transport-problem')">Транспортная задача</button>
     </nav>
 
     <div id="graphic-method" class="content-section" style="display: none;">
@@ -804,12 +804,33 @@ function displayTable(allocation, costMatrix, stepTitle) {
         margin-top: 10px;
     }
 
+    .btm {
+        width: 32%;
+        height: 3em;
+        background-color: #000;
+        color: #fff;
+        font-size: 1.2em;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        word-break: break-all;
+        text-align: center;
+        margin: 2px;
+    }
+
+    .btm:hover {
+        background-color: #c0c0c0;
+        color: #000000;
+    }
+
     .btn {
         width: 100%;
         height: 4em;
         background-color: #000;
         color: #fff;
         font-size: 1.5em;
+        font-weight: bold;
         border: none;
         border-radius: 8px;
         cursor: pointer;
