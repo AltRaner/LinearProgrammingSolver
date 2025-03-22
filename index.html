@@ -297,7 +297,7 @@ function displaySimplexTable(table, title) {
 
 function displaySimplexFinalSolution(result, outputDiv) {
     if (!result) return;
-    outputDiv.innerHTML += `<p class='text-success'>Оптимальное решение:<br>${result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ')}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
+    outputDiv.innerHTML += `<p id="ssiimm">Оптимальное решение:<br>${result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ')}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
 }
 
 
@@ -643,11 +643,32 @@ function displayTable(allocation, costMatrix, stepTitle) {
     return tableHTML;
 }
 
+    document.addEventListener("DOMContentLoaded", function () {
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        if (localStorage.getItem('dark-mode') === 'enabled') {
+            body.classList.add('dark-mode');
+            themeToggle.textContent = '☀️';
+        }
+
+        themeToggle.addEventListener('click', function () {
+            body.classList.toggle('dark-mode');
+            if (body.classList.contains('dark-mode')) {
+                localStorage.setItem('dark-mode', 'enabled');
+                themeToggle.textContent = '☀️';
+            } else {
+                localStorage.setItem('dark-mode', 'disabled');
+                themeToggle.textContent = '🌙';
+            }
+        });
+    });
+
     </script>
 </head>
 <body class="container mt-4">
     <h1 class="text-center">Решение задач линейного программирования</h1>
-
+    <button id="theme-toggle">🌙</button>
     <nav class="nav nav-pills justify-content-center my-3">
         <button class="btm" onclick="showSection('graphic-method')">Графический метод</button>
         <button class="btm" onclick="showSection('simplex-method')">Симплекс-метод</button>
@@ -655,7 +676,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
     </nav>
 
     <div id="graphic-method" class="content-section" style="display: none;">
-        <h2 class="mt-4" style="color: black;">Графический метод</h2>
+        <h2 class="mt-4">Графический метод</h2>
 
         <div class="form-group">
             <label for="constraints-count">Количество ограничений:</label>
@@ -693,7 +714,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
     </div>
 
     <div id="simplex-method" class="content-section" style="display: none;">
-        <h2 class="mb-4" style="color: black;">Симплекс-метод</h2>
+        <h2 class="mb-4">Симплекс-метод</h2>
 
         <div class="form-group">
             <label for="variables-count">Количество переменных:</label>
@@ -742,7 +763,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
     </div>
 
     <div id="transport-problem" class="content-section" style="display: none;">
-    <h2 class="mb-4" style="color: black;">Транспортная задача</h2>
+    <h2 class="mb-4">Транспортная задача</h2>
 
     <div class="form-group">
         <label for="supply-count">Количество поставщиков:</label>
@@ -768,21 +789,23 @@ function displayTable(allocation, costMatrix, stepTitle) {
 
 <!-- Стиль -->
 <style>
+
     .content-section {
         padding: 20px;
         background-color: #f9f9f9;
+        border: 1px solid #ddd;
         border-radius: 8px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
     h2 {
         font-size: 24px;
-        color: #007bff;
+        font-weight: bold;
     }
 
     h3 {
         font-size: 20px;
-        color: #333;
+        font-weight: bold;
     }
 
     .form-group {
@@ -797,11 +820,24 @@ function displayTable(allocation, costMatrix, stepTitle) {
 
     .solution-output {
         font-size: 16px;
-        color: #333;
-        background-color: #eef;
+        color: #000000;
+        background-color: #ffffff;
         padding: 10px;
         border-radius: 5px;
         margin-top: 10px;
+    }
+
+    #solution-output-simplex {
+        font-size: 16px;
+        color: #000000;
+        background-color: #ffffff;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+
+    #ssiimm {
+        color: #000000;
     }
 
     .btm {
@@ -811,7 +847,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
         color: #fff;
         font-size: 1.2em;
         font-weight: bold;
-        border: none;
+        border: 2px solid white;
         border-radius: 8px;
         cursor: pointer;
         word-break: break-all;
@@ -831,7 +867,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
         color: #fff;
         font-size: 1.5em;
         font-weight: bold;
-        border: none;
+        border: 2px solid white;
         border-radius: 8px;
         cursor: pointer;
     }
@@ -846,6 +882,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
         margin-top: 10px;
         border: 1px solid #ddd;
         border-radius: 5px;
+        background-colour: #ffffff;
     }
 
     .table th, .table td {
@@ -861,9 +898,88 @@ function displayTable(allocation, costMatrix, stepTitle) {
         margin-left: 10px;
     }
 
-    #solution-output-simplex {
-        font-size: 16px;
-        color: #333;
+    body {
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    body.dark-mode {
+        background-color: #131313;
+        color: #ffffff;
+    }
+
+    .dark-mode .h2 {
+        color: #ffffff;
+    }
+
+    .dark-mode .h3 {
+        color: #ffffff;
+    }
+
+    .dark-mode .content-section {
+        border: 1px solid #ffffff;
+        background-color: #131313;
+        color: #ffffff;
+    }
+
+    .dark-mode .form-control {
+        background-color: #131313;
+        color: #ffffff;
+    }
+
+    .dark-mode .btm {
+        background-color: #131313;
+    }
+
+    .dark-mode .btm:hover {
+        background-color: #c0c0c0;
+        color: #000000;
+    }
+
+    .dark-mode .solution-output {
+        border: 1px solid #ffffff;
+        background-color: #131313;
+        color: #ffffff;
+    }
+
+    .dark-mode #solution-output-simplex {
+        color: #ffffff;
+        background-color: #131313;
+    }
+
+    .dark-mode #ssiimm {
+        color: #ffffff;
+        background-color: #131313;
+    }
+
+    .dark-mode .btn {
+        background-color: #131313;
+    }
+
+    .dark-mode .btn:hover {
+        background-color: #c0c0c0;
+        color: #000000;
+    }
+
+    body.dark-mode .table th,
+    body.dark-mode .table td {
+        placeholder-color #ffffff;
+        background-color: #0a0a0a;
+        color: #ffffff;
+    }
+    body.dark-mode input::placeholder {
+        color: #bbbbbb;
+        opacity: 1;
+    }
+
+    #theme-toggle {
+        position: fixed;
+        left: 20px;
+        top: 20px;
+        cursor: pointer;
+        font-size: 24px;
+        background: none;
+        border: none;
+        color: inherit;
     }
 </style>
 
