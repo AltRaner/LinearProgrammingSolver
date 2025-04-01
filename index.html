@@ -669,6 +669,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
 <body class="container mt-4">
     <h1 class="text-center">Решение задач линейного программирования</h1>
     <button id="theme-toggle">🌙</button>
+    <label id="version">ver. 0.9</label>
     <nav class="nav nav-pills justify-content-center my-3">
         <button class="btm" onclick="showSection('graphic-method')">Графический метод</button>
         <button class="btm" onclick="showSection('simplex-method')">Симплекс-метод</button>
@@ -977,6 +978,16 @@ function displayTable(allocation, costMatrix, stepTitle) {
         top: 20px;
         cursor: pointer;
         font-size: 24px;
+        background: none;
+        border: none;
+        color: inherit;
+    }
+    
+    #version {
+        position: fixed;
+        left: 20px;
+        bottom: 20px;
+        font-size: 13px;
         background: none;
         border: none;
         color: inherit;
