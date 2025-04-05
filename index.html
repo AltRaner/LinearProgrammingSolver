@@ -664,15 +664,25 @@ function displayTable(allocation, costMatrix, stepTitle) {
         });
     });
 
+            window.addEventListener("DOMContentLoaded", () => {
+                document.getElementById("settings-toggle").addEventListener("click", function () {
+                    const panel = document.getElementById("settings-panel");
+                    panel.style.display = panel.style.display === "none" ? "flex" : "none";
+                });
+            });
+
 
     </script>
 </head>
 <body class="container mt-4">
     <h1 class="text-center">Решение задач линейного программирования</h1>
 
-    <button id="theme-toggle">🌙</button>
+    <button id="settings-toggle">⚙️</button>
 
-    <!--<button onclick="document.location='https://forms.yandex.ru/u/67ebf40184227cf32733264f/'" id="pred">Предложения по улучшению сайта</button> -->
+    <div id="settings-panel" style="display: none;">
+        <button id="theme-toggle">🌙</button>
+        <button id="pred" onclick="document.location='https://forms.yandex.ru/u/67ebf40184227cf32733264f/'">✅</button>
+    </div>
 
     <nav class="nav nav-pills justify-content-center my-3">
         <button class="btm" onclick="showSection('graphic-method')">Графический метод</button>
@@ -790,7 +800,6 @@ function displayTable(allocation, costMatrix, stepTitle) {
     <h3 class="mt-4">Результат:</h3>
     <p id="transport-solution-output"></p>
     </div>
-
 
 <!-- Стиль -->
 <style>
@@ -983,30 +992,55 @@ function displayTable(allocation, costMatrix, stepTitle) {
         opacity: 1;
     }
 
-    #theme-toggle {
-        position: absolute;
-        left: 20px;
-        top: 20px;
+    #theme-toggle,
+    #pred {
         cursor: pointer;
-        font-size: 24px;
+        font-size: 22px;
         background: none;
         border: none;
         color: inherit;
+        padding: 5px;
+        border-radius: 8px;
+        transition: background-color 0.3s;
     }
 
-    #pred {
-        position: fixed;
-        right: 20px;
-        top: 20px;
-        width: 18%;
-        height: 4em;
-        background-color: #000;
-        color: #fff;
-        font-size: 0.8em;
-        font-weight: bold;
-        border: 2px solid white;
-        border-radius: 8px;
-        cursor: pointer;
+    #theme-toggle:hover,
+    #pred:hover {
+        background-color: rgba(255, 255, 255, 0.1); /* немного подсветки при наведении */
+    }
+
+    #settings-toggle {
+      position: absolute;
+      left: 10px;
+      top: 20px;
+      font-size: 24px;
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    #settings-panel {
+        position: absolute;
+        top: 58px;
+        left: 8px;
+        display: none;
+        flex-direction: column;
+        gap: 1px;
+        padding: 5px;
+        border-radius: 10px;
+        z-index: 1000;
+        background-color: #ffffff;
+        border: 2px solid #ffffff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    #settings-panel.hidden {
+      display: none;
+    }
+
+    .dark-mode #settings-panel {
+        background-color: #000000;
     }
     }
 </style>
