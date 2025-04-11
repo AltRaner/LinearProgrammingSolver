@@ -99,6 +99,15 @@
     } else {
         document.getElementById('solution-output').innerHTML = "Нет допустимого решения";
     }
+
+    saveSolution({
+        method: "Графический метод",
+        objective: `Z = ${x1}x1 + ${x2}x2`,
+        constraints: constraints.map(c => `${c.a}x1 + ${c.b}x2 ${c.sign} ${c.c}`),
+        steps: [],
+        result: `x1 = ${bestPoint.x.toFixed(2)}, x2 = ${bestPoint.y.toFixed(2)}, Z = ${bestValue.toFixed(2)}`
+    });
+
 }
 
 function drawGraph(constraints, bestPoint) {
@@ -125,7 +134,10 @@ function drawGraph(constraints, bestPoint) {
             }
         }
     });
+
 }
+
+
 
  function updateSimplexTables() {
             const variablesCount = document.getElementById('variables-count').value;
@@ -297,6 +309,7 @@ function displaySimplexTable(table, title) {
 
 function displaySimplexFinalSolution(result, outputDiv) {
     if (!result) return;
+    var c = [];
     outputDiv.innerHTML += `<p id="ssiimm">Оптимальное решение:<br>${result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ')}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
 }
 
@@ -671,7 +684,6 @@ function displayTable(allocation, costMatrix, stepTitle) {
                 });
             });
 
-
     </script>
 </head>
 <body class="container mt-4">
@@ -679,9 +691,18 @@ function displayTable(allocation, costMatrix, stepTitle) {
 
     <button id="settings-toggle">⚙️</button>
 
+    <div id="solutions-panel" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <span class="close-button" onclick="document.getElementById('solutions-panel').style.display='none'">&times;</span>
+        <h3>Сохранённые решения:</h3>
+        <ul id="solutions-list"></ul>
+      </div>
+    </div>
+
     <div id="settings-panel" style="display: none;">
         <button id="theme-toggle">🌙</button>
         <button id="pred" onclick="document.location='https://forms.yandex.ru/u/67ebf40184227cf32733264f/'">✅</button>
+        <button id="saved">💾</button>
     </div>
 
     <nav class="nav nav-pills justify-content-center my-3">
@@ -726,6 +747,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
         <h3 class="mt-4">Результат:</h3>
         <canvas id="graphCanvas" class="mt-3" width="400" height="400"></canvas>
         <p id="solution-output" class="solution-output"></p>
+
     </div>
 
     <div id="simplex-method" class="content-section" style="display: none;">
@@ -1035,6 +1057,50 @@ function displayTable(allocation, costMatrix, stepTitle) {
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
 
+    #saved {
+        cursor: pointer;
+        font-size: 22px;
+        background: none;
+        border: none;
+        color: inherit;
+        padding: 5px;
+        border-radius: 8px;
+        transition: background-color 0.3s;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        color: black;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80%;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .close-button {
+        position: absolute;
+        right: 15px;
+        top: 10px;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
     #settings-panel.hidden {
       display: none;
     }
@@ -1044,6 +1110,49 @@ function displayTable(allocation, costMatrix, stepTitle) {
     }
     }
 </style>
+<!-- Все скрипты здесь, перед закрывающим тегом </body> -->
+<script>
+  // 💾 Сохранение решения
+  function saveSolution(data) {
+      const existing = JSON.parse(localStorage.getItem("solutions")) || [];
+      existing.push(data);
+      localStorage.setItem("solutions", JSON.stringify(existing));
+  }
 
+  // 📋 Отображение списка решений
+  function showSolutions() {
+      const list = document.getElementById("solutions-list");
+      list.innerHTML = "";
+      const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
+      solutions.forEach((s, i) => {
+          const li = document.createElement("li");
+          li.textContent = `${s.method}: ${s.objective} → ${s.result}`;
+          li.style.cursor = "pointer";
+          li.addEventListener("click", () => showFullSolution(i));
+          list.appendChild(li);
+      });
+  }
+
+  // 🔍 Отображение полного решения
+  function showFullSolution(index) {
+      const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
+      const s = solutions[index];
+      alert(
+          `${s.method}\n\nЦелевая функция: ${s.objective}\nОграничения: ${s.constraints.join(", ")}\n\nРешение: ${s.result}\n\nШаги: ${s.steps.join("\n")}`
+      );
+  }
+
+ document.addEventListener("DOMContentLoaded", function () {
+    const savedBtn = document.getElementById("saved");
+    const panel = document.getElementById("solutions-panel");
+    if (savedBtn && panel) {
+        savedBtn.addEventListener("click", () => {
+            panel.style.display = "flex"; // теперь как overlay
+            showSolutions();
+        });
+    }
+});
+
+</script>
 </body>
 </html>
