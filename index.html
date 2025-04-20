@@ -766,25 +766,25 @@ function displayTable(allocation, costMatrix, stepTitle) {
         </div>
 
         <button class="btn btn-primary mt-2" onclick="updateSimplexTables()">Обновить таблицы</button>
-
-        <h3 class="mt-4">Целевая функция:</h3>
         <div class="table-wrapper">
-            <table class="table" id="simplex-objective-function">
-                <thead>
-                    <tr>
-                        <th scope="col">x1</th>
-                        <th scope="col">x2</th>
-                        <th scope="col">...</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><input type="number" class="form-control" placeholder="x1" value="1"></td>
-                        <td><input type="number" class="form-control" placeholder="x2" value="1"></td>
-                        <td><input type="number" class="form-control" placeholder="x3" value="0"></td>
-                    </tr>
-                </tbody>
-            </table>
+            <h3 class="mt-4">Целевая функция:</h3>
+
+                <table class="table" id="simplex-objective-function">
+                    <thead>
+                        <tr>
+                            <th scope="col">x1</th>
+                            <th scope="col">x2</th>
+                            <th scope="col">...</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="number" class="form-control" placeholder="x1" value="1"></td>
+                            <td><input type="number" class="form-control" placeholder="x2" value="1"></td>
+                            <td><input type="number" class="form-control" placeholder="x3" value="0"></td>
+                        </tr>
+                    </tbody>
+                </table>
         </div>
 
         <label for="simplex-opt-goal">Максимизировать</label>
@@ -931,8 +931,10 @@ function displayTable(allocation, costMatrix, stepTitle) {
     }
 
     .table-wrapper {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+        text-align: center;
+        padding: 1rem 1rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .table {
