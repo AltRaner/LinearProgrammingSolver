@@ -309,9 +309,48 @@ function displaySimplexTable(table, title) {
 
 function displaySimplexFinalSolution(result, outputDiv) {
     if (!result) return;
-    var c = [];
     outputDiv.innerHTML += `<p id="ssiimm">Оптимальное решение:<br>${result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ')}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
+
+    // Получаем данные из формы
+    const variablesCount = parseInt(document.getElementById('variables-count').value);
+    const maximize = document.getElementById('simplex-opt-goal')?.checked ?? false;
+    const objInputs = document.querySelectorAll('#simplex-objective-function input');
+    const objective = "Z = " + Array.from(objInputs).map((input, i) => {
+        const val = parseFloat(input.value) || 0;
+        return `${val}${val !== 0 ? "x" + (i + 1) : ""}`;
+    }).join(" + ");
+
+    const constraintRows = document.querySelectorAll('#simplex-constraints-table tr');
+    const constraintsText = Array.from(constraintRows).map(row => {
+        const inputs = row.querySelectorAll('input');
+        const sign = row.querySelector('select')?.value || "<=";
+        const coeffs = Array.from(inputs).slice(0, variablesCount).map((input, i) => {
+            const val = parseFloat(input.value) || 0;
+            return `${val}x${i + 1}`;
+        }).join(" + ");
+        const b = parseFloat(inputs[variablesCount]?.value) || 0;
+        return `${coeffs} ${sign} ${b}`;
+    });
+
+    const resultText = result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ') + `, Z = ${result.optimalValue.toFixed(2)}`;
+
+    const steps = result.iterationResults.map((table, idx) => {
+        let tableText = `Итерация ${idx + 1}:\n`;
+        table.forEach(row => {
+            tableText += row.map(cell => cell.toFixed(2)).join(' | ') + '\n';
+        });
+        return tableText;
+    });
+
+    saveSolution({
+        method: "Симплекс-метод",
+        objective: objective,
+        constraints: constraintsText,
+        result: resultText,
+        steps: steps
+    });
 }
+
 
 
 function updateTransportTables() {
@@ -383,6 +422,17 @@ function solveTransportProblem() {
 
     let allocation = solveByMinElementMethod(supplies, demands, costMatrix, outputDiv);
     outputDiv.innerHTML += displayFinalSolution(allocation, costMatrix);
+
+    const stepsHTML = outputDiv.innerHTML;
+
+    saveSolution({
+        method: "Транспортная задача",
+        objective: `Минимизировать стоимость перевозки`,
+        constraints: `Поставки: [${supplies.join(', ')}], Потребности: [${demands.join(', ')}]`,
+        result: `Итоговая стоимость: ${allocation.reduce((sum, row, i) =>
+            sum + row.reduce((rowSum, val, j) => rowSum + val * costMatrix[i][j], 0), 0)}`,
+        steps: stepsHTML
+    });
 }
 
 function solveByMinElementMethod(supplies, demands, costMatrix, outputDiv) {
@@ -635,7 +685,11 @@ function findBestImprovement(allocation, costMatrix) {
             }
             tableHTML += `</table><h4>Общая стоимость перевозки: ${totalCost}</h4>`;
             return tableHTML;
+
+            const stepsHTML = outputDiv.innerHTML; // все шаги и таблицы
+
         }
+
 
 function displayTable(allocation, costMatrix, stepTitle) {
     let tableHTML = `<h3>${stepTitle}</h3><table class='table table-bordered'><tr><th></th>`;
@@ -708,7 +762,7 @@ function displayTable(allocation, costMatrix, stepTitle) {
     </div>
 
     <div id="full-solution-panel" class="modal-overlay" style="display: none;">
-      <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-content">
         <span class="close-button" onclick="document.getElementById('full-solution-panel').style.display='none'">&times;</span>
         <h3>Полное решение:</h3>
         <div id="full-solution-content"></div>
@@ -1174,20 +1228,30 @@ function displayTable(allocation, costMatrix, stepTitle) {
 
       // 🔍 Отображение полного решения
       function showFullSolution(index) {
-            const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
-            const s = solutions[index];
+    const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
+    const s = solutions[index];
 
-            const content = document.getElementById("full-solution-content");
-            content.innerHTML = `
-                <p><strong>Метод:</strong> ${s.method}</p>
-                <p><strong>Целевая функция:</strong> ${s.objective}</p>
-                <p><strong>Ограничения:</strong><br>${(s.constraints || []).map(c => `• ${c}`).join("<br>")}</p>
-                <p><strong>Решение:</strong> ${s.result}</p>
-                <p><strong>Шаги:</strong><br>${(s.steps || []).map(step => `→ ${step}`).join("<br>")}</p>
-            `;
+    const content = document.getElementById("full-solution-content");
 
-            document.getElementById("full-solution-panel").style.display = "flex";
-        }
+    const stepsHTML = Array.isArray(s.steps)
+        ? s.steps.map(step => `→ ${step}<hr class="solution-separator">`).join("")
+        : s.steps || ""; // если это уже HTML
+
+    content.innerHTML = `
+        <p><strong>Метод:</strong> ${s.method}</p>
+        <p><strong>Целевая функция:</strong> ${s.objective}</p>
+        <p><strong>Ограничения:</strong><br>${
+            Array.isArray(s.constraints)
+                ? s.constraints.map(c => `• ${c}`).join("<br>")
+                : s.constraints
+        }</p>
+        <p><strong>Решение:</strong> ${s.result}</p>
+        <p><strong>Шаги:</strong><br>${stepsHTML}</p>
+    `;
+
+    document.getElementById("full-solution-panel").style.display = "flex";
+}
+
 
      document.addEventListener("DOMContentLoaded", function () {
         const savedBtn = document.getElementById("saved");
