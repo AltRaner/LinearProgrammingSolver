@@ -691,18 +691,28 @@ function displayTable(allocation, costMatrix, stepTitle) {
 
     <button id="settings-toggle">⚙️</button>
 
-    <div id="solutions-panel" class="modal-overlay" style="display: none;">
-      <div class="modal-content">
-        <span class="close-button" onclick="document.getElementById('solutions-panel').style.display='none'">&times;</span>
-        <h3>Сохранённые решения:</h3>
-        <ul id="solutions-list"></ul>
-      </div>
-    </div>
+
 
     <div id="settings-panel" style="display: none;">
         <button id="theme-toggle">🌙</button>
         <button id="pred" onclick="document.location='https://forms.yandex.ru/u/67ebf40184227cf32733264f/'">✅</button>
         <button id="saved">💾</button>
+    </div>
+
+    <div id="solutions-panel" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <span class="close-button" onclick="document.getElementById('solutions-panel').style.display='none'">&times;</span>
+          <h3>Сохранённые решения:</h3>
+        <ul id="solutions-list"></ul>
+      </div>
+    </div>
+
+    <div id="full-solution-panel" class="modal-overlay" style="display: none;">
+      <div class="modal-content" style="max-width: 600px;">
+        <span class="close-button" onclick="document.getElementById('full-solution-panel').style.display='none'">&times;</span>
+        <h3>Полное решение:</h3>
+        <div id="full-solution-content"></div>
+      </div>
     </div>
 
     <nav class="nav nav-pills justify-content-center my-3">
@@ -1091,6 +1101,12 @@ function displayTable(allocation, costMatrix, stepTitle) {
         transition: background-color 0.3s;
     }
 
+    #solutions-list {
+        cursor: pointer;
+        font-size: 18px;
+        padding: 17px;
+    }
+
     .modal-overlay {
         position: fixed;
         top: 0;
@@ -1148,33 +1164,41 @@ function displayTable(allocation, costMatrix, stepTitle) {
       list.innerHTML = "";
       const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
       solutions.forEach((s, i) => {
-          const li = document.createElement("li");
-          li.textContent = `${s.method}: ${s.objective} → ${s.result}`;
-          li.style.cursor = "pointer";
-          li.addEventListener("click", () => showFullSolution(i));
-          list.appendChild(li);
-      });
-  }
-
-  // 🔍 Отображение полного решения
-  function showFullSolution(index) {
-      const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
-      const s = solutions[index];
-      alert(
-          `${s.method}\n\nЦелевая функция: ${s.objective}\nОграничения: ${s.constraints.join(", ")}\n\nРешение: ${s.result}\n\nШаги: ${s.steps.join("\n")}`
-      );
-  }
-
- document.addEventListener("DOMContentLoaded", function () {
-    const savedBtn = document.getElementById("saved");
-    const panel = document.getElementById("solutions-panel");
-    if (savedBtn && panel) {
-        savedBtn.addEventListener("click", () => {
-            panel.style.display = "flex"; // теперь как overlay
-            showSolutions();
+            const li = document.createElement("li");
+            li.innerHTML = `<div><strong>${s.method}</strong>: ${s.objective} → ${s.result}</div><hr class="solution-separator">`;
+            li.style.cursor = "pointer";
+            li.addEventListener("click", () => showFullSolution(i));
+            list.appendChild(li);
         });
-    }
-});
+  }
+
+      // 🔍 Отображение полного решения
+      function showFullSolution(index) {
+            const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
+            const s = solutions[index];
+
+            const content = document.getElementById("full-solution-content");
+            content.innerHTML = `
+                <p><strong>Метод:</strong> ${s.method}</p>
+                <p><strong>Целевая функция:</strong> ${s.objective}</p>
+                <p><strong>Ограничения:</strong><br>${(s.constraints || []).map(c => `• ${c}`).join("<br>")}</p>
+                <p><strong>Решение:</strong> ${s.result}</p>
+                <p><strong>Шаги:</strong><br>${(s.steps || []).map(step => `→ ${step}`).join("<br>")}</p>
+            `;
+
+            document.getElementById("full-solution-panel").style.display = "flex";
+        }
+
+     document.addEventListener("DOMContentLoaded", function () {
+        const savedBtn = document.getElementById("saved");
+        const panel = document.getElementById("solutions-panel");
+        if (savedBtn && panel) {
+            savedBtn.addEventListener("click", () => {
+                panel.style.display = "flex"; // теперь как overlay
+                showSolutions();
+            });
+        }
+    });
 
 </script>
 </body>
