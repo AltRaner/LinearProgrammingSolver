@@ -107,9 +107,10 @@ function solveGraphicalMethod() {
                 objective: `Z = ${x1}x1 + ${x2}x2`,
                 constraints: constraints.map(c => `${c.a}x1 + ${c.b}x2 ${c.sign} ${c.c}`),
                 steps: `<img src="${graphImage}" alt="График решения" style="max-width: 100%; margin-top: 10px;">`,
-                result: `x1 = ${bestPoint.x.toFixed(2)}, x2 = ${bestPoint.y.toFixed(2)}, Z = ${bestValue.toFixed(2)}`
+                result: `x1 = ${bestPoint.x.toFixed(2)}, x2 = ${bestPoint.y.toFixed(2)}, Z = ${bestValue.toFixed(2)}`,
+                date: new Date().toLocaleString("ru-RU")
             });
-        }, 300); // ⏱ подождем 300 мс
+        }, 300);
     } else {
         document.getElementById('solution-output').innerHTML = "Нет допустимого решения";
     }
@@ -303,9 +304,10 @@ function simplexMethod(c, constraints, maximize, outputDiv) {
     return {
         solution,
         optimalValue: table[m][n + m],
-        stepsHTML, // 💾 возвращаем шаги в виде HTML
+        stepsHTML,
         iterationResults
     };
+
 }
 
 // Функция для клонирования таблицы
@@ -324,11 +326,15 @@ function displaySimplexTable(table, title) {
 
 function displaySimplexFinalSolution(result, outputDiv) {
     if (!result) return;
-    outputDiv.innerHTML += `<p id="ssiimm">Оптимальное решение:<br>${result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ')}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
 
-    // Получаем данные из формы
+    // Финальный HTML
+    const resultHTML = `<p id="ssiimm">Оптимальное решение:<br>${result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ')}<br>Z = ${result.optimalValue.toFixed(2)}</p>`;
+    outputDiv.innerHTML += resultHTML;
+
+    // Достаём данные из формы
     const variablesCount = parseInt(document.getElementById('variables-count').value);
     const maximize = document.getElementById('simplex-opt-goal')?.checked ?? false;
+
     const objInputs = document.querySelectorAll('#simplex-objective-function input');
     const objective = "Z = " + Array.from(objInputs).map((input, i) => {
         const val = parseFloat(input.value) || 0;
@@ -349,22 +355,17 @@ function displaySimplexFinalSolution(result, outputDiv) {
 
     const resultText = result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ') + `, Z = ${result.optimalValue.toFixed(2)}`;
 
-    const steps = result.iterationResults.map((table, idx) => {
-        let tableText = `Итерация ${idx + 1}:\n`;
-        table.forEach(row => {
-            tableText += row.map(cell => cell.toFixed(2)).join(' | ') + '\n';
-        });
-        return tableText;
-    });
+    // ✅ Финальные шаги: HTML итерации + результат
+    const fullSteps = result.stepsHTML + resultHTML;
 
-    const fullSteps = stepsHTML + resultHTML;
-
+    // 💾 Сохраняем
     saveSolution({
         method: "Симплекс-метод",
         objective: objective,
         constraints: constraintsText,
         result: resultText,
-        steps: fullsteps
+        steps: fullSteps,
+        date: new Date().toLocaleString("ru-RU")
     });
 }
 
@@ -448,7 +449,8 @@ function solveTransportProblem() {
         constraints: `Поставки: [${supplies.join(', ')}], Потребности: [${demands.join(', ')}]`,
         result: `Итоговая стоимость: ${allocation.reduce((sum, row, i) =>
             sum + row.reduce((rowSum, val, j) => rowSum + val * costMatrix[i][j], 0), 0)}`,
-        steps: stepsHTML
+        steps: stepsHTML,
+        date: new Date().toLocaleString("ru-RU")
     });
 }
 
@@ -758,20 +760,22 @@ function displayTable(allocation, costMatrix, stepTitle) {
 
 function deleteSelectedSolutions() {
     const checkboxes = document.querySelectorAll(".solution-checkbox:checked");
-    if (checkboxes.length === 0) {
-        alert("Выберите хотя бы одно решение для удаления.");
-        return;
-    }
+    const selectedIndexes = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
 
-    let indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+    if (selectedIndexes.length === 0) return;
 
-    // Удаляем по индексам
     let solutions = JSON.parse(localStorage.getItem("solutions")) || [];
-    solutions = solutions.filter((_, i) => !indicesToDelete.includes(i));
-    localStorage.setItem("solutions", JSON.stringify(solutions));
+    solutions = solutions.filter((_, index) => !selectedIndexes.includes(index));
 
-    showSolutions();
+    localStorage.setItem("solutions", JSON.stringify(solutions));
+    showSolutions(); // обновим таблицу
 }
+
+function deleteAllSolutions() {
+        localStorage.removeItem("solutions");
+        showSolutions();
+}
+
 
     </script>
 </head>
@@ -794,10 +798,26 @@ function deleteSelectedSolutions() {
         <h3>Сохранённые решения:</h3>
 
         <div id="solution-actions" style="margin-bottom: 10px;">
-          <button id="delete-selected" onclick="deleteSelectedSolutions()">🗑 Удалить выбранные</button>
+          <button id="delete-selected" onclick="deleteSelectedSolutions()">Удалить выбранные</button>
+          <button id="delete-selected" onclick="deleteAllSolutions()">Удалить все</button>
         </div>
 
-        <ul id="solutions-list"></ul>
+        <p id="no-solutions-message" style="display: none; text-align: center; font-style: italic;">Нет сохранённых решений</p>
+
+        <table id="solutions-table" class="table">
+          <thead>
+            <tr>
+              <th onclick="sortSolutionsBy('method')">Метод</th>
+              <th onclick="sortSolutionsBy('objective')">Целевая функция</th>
+              <th onclick="sortSolutionsBy('result')">Результат</th>
+              <th onclick="sortSolutionsBy('date')">Дата</th>
+              <th>✔</th>
+            </tr>
+          </thead>
+          <tbody id="solutions-list"></tbody>
+        </table>
+
+
       </div>
     </div>
 
@@ -1278,33 +1298,44 @@ function deleteSelectedSolutions() {
   }
 
   // 📋 Отображение списка решений
-  function showSolutions() {
+  let currentSortKey = "date"; // по умолчанию
+let sortAsc = false;
+
+function showSolutions() {
     const list = document.getElementById("solutions-list");
+    const noMessage = document.getElementById("no-solutions-message");
+    const table = document.getElementById("solutions-table"); // если у таблицы есть id
+
     list.innerHTML = "";
     const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
 
+    if (solutions.length === 0) {
+        noMessage.style.display = "block";
+        if (table) table.style.display = "none";
+        return;
+    }
+
+    noMessage.style.display = "none";
+    if (table) table.style.display = "table"; // показать таблицу
+
     solutions.forEach((s, i) => {
-        const li = document.createElement("li");
-
-        li.innerHTML = `
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" class="solution-checkbox" data-index="${i}">
-                <div><strong>${s.method}</strong>: ${s.objective} → ${s.result}</div>
-            </label>
-            <hr class="solution-separator">
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${s.method}</td>
+            <td>${s.objective}</td>
+            <td>${s.result}</td>
+            <td>${s.date || "-"}</td>
+            <td><input type="checkbox" class="solution-checkbox" data-index="${i}"></td>
         `;
-
-        li.addEventListener("click", (e) => {
-            // игнорировать клик по чекбоксу
-            if (e.target.tagName.toLowerCase() !== "input") {
+        row.style.cursor = "pointer";
+        row.addEventListener("click", (e) => {
+            if (!e.target.matches("input")) {
                 showFullSolution(i);
             }
         });
-
-        list.appendChild(li);
+        list.appendChild(row);
     });
 }
-
 
       // 🔍 Отображение полного решения
       function showFullSolution(index) {
@@ -1330,6 +1361,16 @@ function deleteSelectedSolutions() {
     `;
 
     document.getElementById("full-solution-panel").style.display = "flex";
+}
+
+function sortSolutionsBy(key) {
+    if (currentSortKey === key) {
+        sortAsc = !sortAsc; // переключаем направление
+    } else {
+        currentSortKey = key;
+        sortAsc = true;
+    }
+    showSolutions(); // перерисовываем
 }
 
 
