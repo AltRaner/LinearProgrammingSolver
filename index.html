@@ -111,16 +111,25 @@ function solveGraphicalMethod() {
                 result: `x1 = ${bestPoint.x.toFixed(2)}, x2 = ${bestPoint.y.toFixed(2)}, Z = ${bestValue.toFixed(2)}`,
                 date: new Date().toLocaleString("ru-RU")
             });
+
+            showSolutionToast();
         }, 300);
     } else {
         document.getElementById('solution-output').innerHTML = "Нет допустимого решения";
     }
 }
 
+let currentChart = null;
 
 function drawGraph(constraints, bestPoint) {
+
     const ctx = document.getElementById('graphCanvas').getContext('2d');
-    const chart = new Chart(ctx, {
+
+    if (currentChart !== null) {
+        currentChart.destroy();
+    }
+
+    currentChart = new Chart(ctx, {
         type: 'scatter',
         data: {
             datasets: constraints.map((c, i) => ({
@@ -144,8 +153,6 @@ function drawGraph(constraints, bestPoint) {
     });
 
 }
-
-
 
  function updateSimplexTables() {
             const variablesCount = document.getElementById('variables-count').value;
@@ -265,7 +272,7 @@ function simplexMethod(c, constraints, maximize, outputDiv) {
 
         const htmlTable = displaySimplexTable(table, `Итерация ${iterations + 1}`);
         outputDiv.innerHTML += htmlTable;
-        stepsHTML += htmlTable; // ✨ копим HTML
+        stepsHTML += htmlTable;
 
         let pivotCol = table[m].slice(0, n + m).indexOf(Math.min(...table[m].slice(0, n + m)));
         if (table[m][pivotCol] >= 0) break;
@@ -356,10 +363,8 @@ function displaySimplexFinalSolution(result, outputDiv) {
 
     const resultText = result.solution.map((val, i) => `x${i + 1} = ${val.toFixed(2)}`).join(', ') + `, Z = ${result.optimalValue.toFixed(2)}`;
 
-    // ✅ Финальные шаги: HTML итерации + результат
     const fullSteps = result.stepsHTML + resultHTML;
 
-    // 💾 Сохраняем
     saveSolution({
         method: "Симплекс-метод",
         objective: objective,
@@ -368,6 +373,8 @@ function displaySimplexFinalSolution(result, outputDiv) {
         steps: fullSteps,
         date: new Date().toLocaleString("ru-RU")
     });
+
+    showSolutionToast();
 }
 
 
@@ -453,6 +460,8 @@ function solveTransportProblem() {
         steps: stepsHTML,
         date: new Date().toLocaleString("ru-RU")
     });
+
+    showSolutionToast();
 }
 
 function solveByMinElementMethod(supplies, demands, costMatrix, outputDiv) {
@@ -496,7 +505,7 @@ function optimizeSolution(allocation, costMatrix, outputDiv) {
         let { i, j } = findBestImprovement(allocation, costMatrix);
         let cycle = findClosedLoop(allocation, i, j);
 
-        if (!cycle) return allocation;
+        if (!cycle) return allocation
 
         let minFlow = Math.min(...cycle.filter((_, k) => k % 2 !== 0).map(([x, y]) => allocation[x][y]));
         cycle.forEach(([x, y], k) => allocation[x][y] += (k % 2 === 0 ? minFlow : -minFlow));
@@ -779,56 +788,94 @@ function deleteAllSolutions() {
 
 function exportSolutionToPDF(index) {
     const panel = document.getElementById("full-solution-panel");
-    if (!panel) return;
-
     const content = document.getElementById("full-solution-content");
+    if (!panel || !content) return;
 
-    if (!content) return;
+    // Временно отобразим скрытую панель
+    const originalDisplay = panel.style.display;
+    panel.style.display = "flex"; // нужно, чтобы элемент был видим
 
-    // Клонируем содержимое для аккуратной работы
-    const clone = content.cloneNode(true);
+    // Небольшая задержка, чтобы браузер успел отрисовать
+    setTimeout(() => {
+        const clone = content.cloneNode(true);
 
-    // Создаем новый контейнер для PDF
-    const wrapper = document.createElement("div");
-    wrapper.style.padding = "20px";
-    wrapper.style.color = "#000";
-    wrapper.style.fontFamily = "Arial, sans-serif"; // более аккуратный шрифт
-    wrapper.style.lineHeight = "1.5"; // Увеличенный межстрочный интервал
+        const wrapper = document.createElement("div");
+        wrapper.style.padding = "20px";
+        wrapper.style.color = "#000";
+        wrapper.style.fontFamily = "Arial, sans-serif";
+        wrapper.style.lineHeight = "1.5";
 
-    // Добавляем заголовок
-    const title = document.createElement("h2");
-    title.textContent = "Полное решение";
-    title.style.textAlign = "center";
-    title.style.marginBottom = "15px";
-    wrapper.appendChild(title);
+        const title = document.createElement("h2");
+        title.textContent = "Полное решение";
+        title.style.textAlign = "center";
+        title.style.marginBottom = "15px";
+        wrapper.appendChild(title);
 
-    // Перебираем все дочерние элементы клона и добавляем отступы
-    Array.from(clone.children).forEach(child => {
-        child.style.marginBottom = "20px"; // отступ между элементами
-        wrapper.appendChild(child);
-    });
+        Array.from(clone.children).forEach(child => {
+            child.style.marginBottom = "20px";
+            wrapper.appendChild(child);
+        });
 
-    const opt = {
-        margin:       0.5,
-        filename:     `solution_${index + 1}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, backgroundColor: "#ffffff" }, // белый фон принудительно
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
+        const opt = {
+            margin: 0.5,
+            filename: `solution_${index + 1}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, backgroundColor: "#ffffff" },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
 
-    html2pdf().from(wrapper).set(opt).save();
+        html2pdf().from(wrapper).set(opt).save().then(() => {
+            // Вернём прежнее состояние панели
+            panel.style.display = originalDisplay;
+        });
+
+    }, 200); // задержка, чтобы DOM обновился
 }
+
+
+    function showSolutionToast() {
+        const toast = document.getElementById('solution-toast');
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 5000);
+    }
+
+    function openLastSavedSolution() {
+        const solutions = JSON.parse(localStorage.getItem("solutions")) || [];
+        if (solutions.length === 0) return;
+
+        const lastIndex = solutions.length - 1;
+
+        // Скрываем список и показываем окно полного решения
+        document.getElementById("solutions-panel").style.display = "none";
+        document.getElementById("full-solution-panel").style.display = "flex";
+
+        // Используем requestAnimationFrame, чтобы отрисовка точно завершилась
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                showFullSolution(lastIndex);
+            });
+        });
+    }
+
+
+
 
     </script>
 </head>
 <body class="container mt-4">
+
+    <div id="solution-toast" onclick="openLastSavedSolution()">Решение сохранено. Нажмите, чтобы посмотреть.</div>
+
     <h1 class="text-center">Решение задач линейного программирования</h1>
 
     <button id="settings-toggle">⚙️</button>
 
     <div id="settings-panel" style="display: none;">
         <button id="theme-toggle">🌙</button>
-        <button id="pred" onclick="document.location='https://forms.yandex.ru/u/67ebf40184227cf32733264f/'">✅</button>
+        <button id="pred" onclick="window.open('https://forms.yandex.ru/u/67ebf40184227cf32733264f/', '_blank')">✅</button>
         <button id="saved">💾</button>
     </div>
 
@@ -913,7 +960,7 @@ function exportSolutionToPDF(index) {
         <button class="btn btn-success mt-3" onclick="solveGraphicalMethod()">Решить</button>
 
         <h3 class="mt-4">Результат:</h3>
-        <canvas id="graphCanvas" class="mt-3" width="400" height="400"></canvas>
+        <canvas id="graphCanvas" class="mt-3" width="400" height="200"></canvas>
         <p id="solution-output" class="solution-output"></p>
 
     </div>
@@ -1006,11 +1053,6 @@ function exportSolutionToPDF(index) {
 
 <!-- Стиль -->
 <style>
-
-    body {
-        zoom: 90%
-    }
-
     .content-section {
         padding: 20px;
         background-color: #f9f9f9;
@@ -1031,13 +1073,14 @@ function exportSolutionToPDF(index) {
 
     .form-group {
         margin-bottom: 20px;
+        font-size: 16px;
     }
 
     .form-control {
         width: 100%;
         min-width: 10px;
         padding: 5px;
-        font-size: 11px;
+        font-size: 15px;
         margin-top: 5px;
     }
 
@@ -1070,7 +1113,7 @@ function exportSolutionToPDF(index) {
         color: #fff;
         font-size: 1.2em;
         font-weight: bold;
-        border: 2px solid white;
+        border: 0.5px solid white;
         border-radius: 8px;
         cursor: pointer;
         word-break: break-all;
@@ -1090,7 +1133,7 @@ function exportSolutionToPDF(index) {
         color: #fff;
         font-size: 1.5em;
         font-weight: bold;
-        border: 2px solid white;
+        border: 0.5px solid white;
         border-radius: 8px;
         cursor: pointer;
     }
@@ -1100,20 +1143,44 @@ function exportSolutionToPDF(index) {
         color: #000000;
     }
 
+    #solution-toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #323232;
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        display: none;
+        z-index: 9999;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+    }
+
+    #solution-toast.show {
+        display: block;
+        opacity: 1;
+    }
+
+
     .table-wrapper {
-        text-align: center;
+        text-align: start;
         padding: 1rem 1rem;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        font-size: 16px;
     }
 
     .table {
         width: 100%;
         margin-top: 10px;
         min-width: 100px;
-        border: 1px solid #ddd;
+        border: 0.1px solid #ddd;
         border-radius: 5px;
         background-colour: #ffffff;
+        font-size: 16px;
     }
 
     .table th, .table td {
@@ -1139,7 +1206,7 @@ function exportSolutionToPDF(index) {
     }
 
     body.dark-mode {
-        background-color: #131313;
+        background-color: #151719;
         color: #ffffff;
     }
 
@@ -1153,17 +1220,17 @@ function exportSolutionToPDF(index) {
 
     .dark-mode .content-section {
         border: 1px solid #ffffff;
-        background-color: #131313;
+        background-color: #151719;
         color: #ffffff;
     }
 
     .dark-mode .form-control {
-        background-color: #131313;
+        background-color: #151719;
         color: #ffffff;
     }
 
     .dark-mode .btm {
-        background-color: #131313;
+        background-color: #151719;
     }
 
     .dark-mode .btm:hover {
@@ -1173,22 +1240,22 @@ function exportSolutionToPDF(index) {
 
     .dark-mode .solution-output {
         border: 1px solid #ffffff;
-        background-color: #131313;
+        background-color: #151719;
         color: #ffffff;
     }
 
     .dark-mode #solution-output-simplex {
         color: #ffffff;
-        background-color: #131313;
+        background-color: #151719;
     }
 
     .dark-mode #ssiimm {
         color: #ffffff;
-        background-color: #131313;
+        background-color: #151719;
     }
 
     .dark-mode .btn {
-        background-color: #131313;
+        background-color: #151719;
     }
 
     .dark-mode .btn:hover {
@@ -1199,12 +1266,27 @@ function exportSolutionToPDF(index) {
     body.dark-mode .table th,
     body.dark-mode .table td {
         placeholder-color #ffffff;
-        background-color: #0a0a0a;
+        background-color: #151719;
         color: #ffffff;
     }
     body.dark-mode input::placeholder {
         color: #bbbbbb;
         opacity: 1;
+    }
+
+    .win-button {
+        background-color: #fff;
+        color: #000;
+        font-size: 2em;
+        font-weight: bold;
+        border: none;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .dark-mode .win-button {
+        background-color: #151719;
+        color: #fff;
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     #export-button {
@@ -1220,6 +1302,11 @@ function exportSolutionToPDF(index) {
         word-break: break-all;
         text-align: center;
         margin: 2px;
+    }
+
+    #export-button:hover {
+        background-color: #c0c0c0;
+        color: #000000;
     }
 
     #theme-toggle,
@@ -1261,7 +1348,6 @@ function exportSolutionToPDF(index) {
         border-radius: 10px;
         z-index: 1000;
         background-color: #ffffff;
-        border: 2px solid #ffffff;
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
 
@@ -1317,12 +1403,12 @@ function exportSolutionToPDF(index) {
 
     .dark-mode .modal-content {
         border: 1px solid #ffffff;
-        background-color: #131313;
+        background-color: #151719;
         color: #ffffff;
     }
 
     .dark-mode #delete-selected {
-        background-color: #131313;
+        background-color: #151719;
         color: #ffffff;
     }
 
@@ -1339,7 +1425,7 @@ function exportSolutionToPDF(index) {
     }
 
     .dark-mode #settings-panel {
-        background-color: #000000;
+        background-color: #151719;
     }
     }
 </style>
@@ -1420,8 +1506,7 @@ function showSolutions() {
     document.getElementById("full-solution-header").innerHTML = `
     <button id="export-button" onclick="exportSolutionToPDF(${index})">
         📄 Скачать в PDF
-    </button>
-`;
+    </button>`;
 }
 
 function sortSolutionsBy(key) {
